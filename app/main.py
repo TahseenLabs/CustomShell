@@ -9,7 +9,10 @@ def main():
     
         # Reading a line of input from the user 
         command = input()
-
+        # If the user types "exit", break out of the loop
+        # This allows the shell to terminate gracefully
+        if command == "exit":
+            break
         # Since no actual command execution is implemented yet,
         # printing a "command not found" message like a real shell
         print(f"{command}: command not found")
