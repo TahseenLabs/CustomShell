@@ -13,10 +13,14 @@ def main():
         # This allows the shell to terminate gracefully
         if command == "exit":
             break
-        # Since no actual command execution is implemented yet,
-        # printing a "command not found" message like a real shell
-        print(f"{command}: command not found")
-
+        # If the command starts with "echo ", print everything after "echo "
+        # This simulates the basic behavior of the Unix 'echo' command
+        elif command.startswith("echo "):
+            print(command[5:])
+        # For any other command, print a "command not found" message
+        else:
+            print(f"{command}: command not found")
+       
 
 # Entry point of the program
 # Ensures main() runs only when the script is executed directly
