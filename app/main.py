@@ -1,6 +1,7 @@
 import sys
 import os
 import subprocess
+import shlex
 
 
 def main():
@@ -88,8 +89,10 @@ def main():
         
         # For any other command, run it as an external program if executable
         else:
-            # Splitting command into program + arguments
-            parts = command.split()
+            # Splitting command into program + arguments, respecting quotes
+            parts = shlex.split(command)
+            if not parts:
+                continue # Skipping empty inputs
             cmd_name = parts[0]
             args = parts  # includes program name as arg0
 
