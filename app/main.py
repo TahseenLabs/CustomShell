@@ -33,16 +33,19 @@ def main():
             # Printing the current working directory
             print(os.getcwd())
         
-        # cd builtin (absolute and relative paths)
+        # cd builtin (absolute paths, relative paths, and ~)
         elif command.startswith("cd "):
             # Extracting the target directory
             target_dir = command[3:].strip()
 
+            # Handling ~ for home directory
+            if target_dir == "~":
+                new_dir = os.environ.get("HOME", os.getcwd())
             # Handling absolute paths
-            if target_dir.startswith("/"):
+            elif target_dir.startswith("/"):
                 new_dir = target_dir
+            # Handling relative paths
             else:
-                # Handling relative paths: combine current directory with target
                 new_dir = os.path.join(os.getcwd(), target_dir)
 
             # Checking if the directory exists
