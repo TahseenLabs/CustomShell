@@ -72,8 +72,9 @@ def main():
                 # Checking if file exists and is executable
                 if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
                     try:
-                        # Running the external program with all arguments
-                        subprocess.run([full_path] + args[1:])
+                        # Run the external program with all arguments
+                        # argv[0] must be the typed command, not full_path
+                        subprocess.run(args, executable=full_path)
                     except Exception as e:
                         print(f"Error running {cmd_name}: {e}")
                     found = True
