@@ -1,4 +1,5 @@
 import sys
+import os
 
 
 def main():
@@ -21,12 +22,30 @@ def main():
             print(command[5:])
         # Type builtin
         elif command.startswith("type "):
-            # Extract the argument after "type "
+            # Extracting the argument after "type "
             cmd_name = command[5:].strip()
+            # Case 1: builtin command
             if cmd_name in builtins:
                 print(f"{cmd_name} is a shell builtin")
+
+            # Case 2: searching for executable in PATH
             else:
-                print(f"{cmd_name}: not found")
+                found = False
+                # Getting PATH environment variable (use os.pathsep to split OS-agnostic)
+                path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+                for dir_path in path_dirs:
+                    # Skipping directories that don't exist
+                    if not os.path.isdir(dir_path):
+                        continue
+                    full_path = os.path.join(dir_path, cmd_name)
+                    # Checking if file exists and is executable
+                    if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                        print(f"{cmd_name} is {full_path}")
+                        found = True
+                        break
+                # Case 3: not found anywhere
+                if not found:
+                    print(f"{cmd_name}: not found")
         # For any other command, print a "command not found" message
         else:
             print(f"{command}: command not found")
