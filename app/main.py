@@ -2,6 +2,8 @@ import sys
 
 
 def main():
+    # List of shell builtin commands
+    builtins = ["echo", "exit", "type"]
     # Infinite loop to continuously display the shell prompt,
     # mimicking how a real shell waits for user commands repeatedly
     while True:
@@ -17,6 +19,14 @@ def main():
         # This simulates the basic behavior of the Unix 'echo' command
         elif command.startswith("echo "):
             print(command[5:])
+        # Type builtin
+        elif command.startswith("type "):
+            # Extract the argument after "type "
+            cmd_name = command[5:].strip()
+            if cmd_name in builtins:
+                print(f"{cmd_name} is a shell builtin")
+            else:
+                print(f"{cmd_name}: not found")
         # For any other command, print a "command not found" message
         else:
             print(f"{command}: command not found")
