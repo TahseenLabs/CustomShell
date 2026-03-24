@@ -24,10 +24,14 @@ def main():
         if command == "exit":
             break
         
-        # If the command starts with "echo ", print everything after "echo "
-        # This simulates the basic behavior of the Unix 'echo' command
+        # If the command starts with "echo ", printing all arguments after 'echo'
+        # This simulates the Unix 'echo' command while respecting single quotes
+        # Single quotes preserve spaces and special characters literally
         elif command.startswith("echo "):
-            print(command[5:])
+            # Using shlex to split the command while respecting quotes
+            parts = shlex.split(command)
+            # Joining all arguments after 'echo' to preserve spacing inside quotes
+            print(" ".join(parts[1:]))
         
         # pwd builtin
         elif command == "pwd":
