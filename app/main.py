@@ -5,7 +5,7 @@ import subprocess
 
 def main():
     # List of shell builtin commands
-    builtins = ["echo", "exit", "type", "pwd"]
+    builtins = ["echo", "exit", "type", "pwd", "cd"]
     # Infinite loop to continuously display the shell prompt,
     # mimicking how a real shell waits for user commands repeatedly
     while True:
@@ -32,6 +32,22 @@ def main():
         elif command == "pwd":
             # Printing the current working directory
             print(os.getcwd())
+        
+        # cd builtin (absolute paths)
+        elif command.startswith("cd "):
+            # Extracting the target directory
+            target_dir = command[3:].strip()
+            # Only handling absolute paths starting with '/'
+            if target_dir.startswith("/"):
+                if os.path.isdir(target_dir):
+                    try:
+                        os.chdir(target_dir)
+                    except Exception as e:
+                        # If changing directory fails, printing an error
+                        print(f"cd: {target_dir}: No such file or directory")
+                else:
+                    # Directory does not exist
+                    print(f"cd: {target_dir}: No such file or directory")
         
         # Type builtin
         elif command.startswith("type "):
