@@ -33,21 +33,28 @@ def main():
             # Printing the current working directory
             print(os.getcwd())
         
-        # cd builtin (absolute paths)
+        # cd builtin (absolute and relative paths)
         elif command.startswith("cd "):
             # Extracting the target directory
             target_dir = command[3:].strip()
-            # Only handling absolute paths starting with '/'
+
+            # Handling absolute paths
             if target_dir.startswith("/"):
-                if os.path.isdir(target_dir):
-                    try:
-                        os.chdir(target_dir)
-                    except Exception as e:
-                        # If changing directory fails, printing an error
-                        print(f"cd: {target_dir}: No such file or directory")
-                else:
-                    # Directory does not exist
+                new_dir = target_dir
+            else:
+                # Handling relative paths: combine current directory with target
+                new_dir = os.path.join(os.getcwd(), target_dir)
+
+            # Checking if the directory exists
+            if os.path.isdir(new_dir):
+                try:
+                    os.chdir(new_dir)
+                except Exception:
+                    # Directory exists but cannot be accessed
                     print(f"cd: {target_dir}: No such file or directory")
+            else:
+                # Directory does not exist
+                print(f"cd: {target_dir}: No such file or directory")
         
         # Type builtin
         elif command.startswith("type "):
