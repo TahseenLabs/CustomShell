@@ -2,8 +2,12 @@ import sys
 
 
 def main():
-    # Displaying the shell prompt ("$ ") without adding a newline
-    sys.stdout.write("$ ")
+    # Infinite loop to continuously display the shell prompt,
+    # mimicking how a real shell waits for user commands repeatedly
+    while True:
+        sys.stdout.write("$ ")
+    while True:
+        sys.stdout.write("$ ")
     
     # Reading a line of input from the user 
     command = input()
