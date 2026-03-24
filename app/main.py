@@ -5,7 +5,7 @@ import subprocess
 
 def main():
     # List of shell builtin commands
-    builtins = ["echo", "exit", "type"]
+    builtins = ["echo", "exit", "type", "pwd"]
     # Infinite loop to continuously display the shell prompt,
     # mimicking how a real shell waits for user commands repeatedly
     while True:
@@ -27,7 +27,12 @@ def main():
         # This simulates the basic behavior of the Unix 'echo' command
         elif command.startswith("echo "):
             print(command[5:])
-            
+        
+        # pwd builtin
+        elif command == "pwd":
+            # Printing the current working directory
+            print(os.getcwd())
+        
         # Type builtin
         elif command.startswith("type "):
             # Extracting the argument after "type "
