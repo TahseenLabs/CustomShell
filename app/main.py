@@ -223,10 +223,69 @@ def main():
             # Using already parsed parts (redirection removed)
             if not parts:
                 continue # Skipping empty inputs
-            cmd_name = parts[0]
-            args = parts  # includes program name as arg0
+            
+            # --- Pipeline handling ---
+            # Split the original command into pipeline segments by |
+            # We re-split from scratch to preserve each segment cleanly
+            raw_parts = shlex.split(command)
+            pipeline_segments = []
+            current_segment = []
+            for token in raw_parts:
+                if token == "|":
+                    if current_segment:
+                        pipeline_segments.append(current_segment)
+                        current_segment = []
+                else:
+                    current_segment.append(token)
+            if current_segment:
+                pipeline_segments.append(current_segment)
 
-            found = False
+            if len(pipeline_segments) > 1:
+                # Build a chain of processes connected by pipes
+                processes = []
+                prev_stdout = None  # stdout of previous process becomes stdin of next
+
+                for idx, seg in enumerate(pipeline_segments):
+                    is_last = (idx == len(pipeline_segments) - 1)
+
+                    stdin_src = prev_stdout  # None for first process
+
+                    # Last segment respects any stdout/stderr redirection
+                    if is_last:
+                        stdout_dest = open(redirect_file, redirect_mode) if redirect_file else None
+                        stderr_dest = open(stderr_file, stderr_mode) if stderr_file else None
+                    else:
+                        stdout_dest = subprocess.PIPE
+                        stderr_dest = None
+
+                    proc = subprocess.Popen(
+                        seg,
+                        stdin=stdin_src,
+                        stdout=stdout_dest,
+                        stderr=stderr_dest
+                    )
+
+                    # Close the read end of the previous pipe in the parent
+                    # so the previous process gets SIGPIPE when this one exits
+                    if prev_stdout is not None:
+                        prev_stdout.close()
+
+                    prev_stdout = proc.stdout
+                    processes.append((proc, stdout_dest, stderr_dest))
+
+                # Wait for all processes to finish
+                for proc, stdout_dest, stderr_dest in processes:
+                    proc.wait()
+                    if stdout_dest and stdout_dest != subprocess.PIPE:
+                        stdout_dest.close()
+                    if stderr_dest:
+                        stderr_dest.close()
+            else:
+                # Single external command 
+                cmd_name = parts[0]
+                args = parts  # includes program name as arg0
+
+                found = False
             # Searching PATH for executable
             path_dirs = os.environ.get("PATH", "").split(os.pathsep)
             for dir_path in path_dirs:
