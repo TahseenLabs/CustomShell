@@ -79,7 +79,7 @@ def main():
                 if stderr_dir:
                     os.makedirs(stderr_dir, exist_ok=True)
                 # Open and immediately close to ensure the file exists (empty)
-                with open(stderr_file, "w") as f:
+                with open(stderr_file, stderr_mode) as f:  # use correct mode
                     pass
         # pwd builtin
         elif command == "pwd":
@@ -173,7 +173,7 @@ def main():
                             stderr_dir = os.path.dirname(stderr_file)
                             if stderr_dir:  # skip if no directory (file in current dir)
                                 os.makedirs(stderr_dir, exist_ok=True)
-                            stderr_dest = open(stderr_file, "w")
+                            stderr_dest = open(stderr_file, stderr_mode) if stderr_file else None
                         
                         # Run the external command with optional redirection
                         process = subprocess.Popen(
