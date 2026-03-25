@@ -15,6 +15,23 @@ def main():
         # Reading a line of input from the user 
         command = input()
         
+        # Parsing output redirection (>, 1>) while respecting quotes
+        # Extracts the output file and removes redirection tokens from the command
+        parts = shlex.split(command)
+
+        redirect_file = None
+        if ">" in parts:
+            idx = parts.index(">")
+            redirect_file = parts[idx + 1]
+            parts = parts[:idx]
+        elif "1>" in parts:
+            idx = parts.index("1>")
+            redirect_file = parts[idx + 1]
+            parts = parts[:idx]
+
+        # Rebuilding command without redirection so builtins and execution work normally
+        command = " ".join(parts)
+        
         # Skip empty input
         if not command:
             continue
@@ -30,9 +47,17 @@ def main():
         elif command.startswith("echo "):
             # Using shlex to split the command while respecting quotes
             parts = shlex.split(command)
-            # Joining all arguments after 'echo' to preserve spacing inside quotes
-            print(" ".join(parts[1:]))
+            # Joining all arguments after 'echo' to preserve spacing and handle 
+            # quoted input correctly
+            output = " ".join(parts[1:])
         
+            if redirect_file:
+                # If output is redirected, write to file instead of printing to terminal
+                with open(redirect_file, "w") as f:
+                    print(output, file=f)
+            else:
+                print(output)
+                
         # pwd builtin
         elif command == "pwd":
             # Printing the current working directory
@@ -93,8 +118,7 @@ def main():
         
         # For any other command, run it as an external program if executable
         else:
-            # Splitting command into program + arguments, respecting quotes
-            parts = shlex.split(command)
+            # Using already parsed parts (redirection removed)
             if not parts:
                 continue # Skipping empty inputs
             cmd_name = parts[0]
@@ -110,9 +134,14 @@ def main():
                 # Checking if file exists and is executable
                 if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
                     try:
-                        # Run the external program with all arguments
+                        # Running the external program with all arguments
+                        # If redirection is specified, send stdout to file (stderr remains on terminal)
                         # argv[0] must be the typed command, not full_path
-                        subprocess.run(args, executable=full_path)
+                        if redirect_file:
+                            with open(redirect_file, "w") as f:
+                                subprocess.run(args, executable=full_path, stdout=f)
+                        else:
+                            subprocess.run(args, executable=full_path)
                     except Exception as e:
                         print(f"Error running {cmd_name}: {e}")
                     found = True
@@ -125,22 +154,3 @@ def main():
 # Ensures main() runs only when the script is executed directly
 if __name__ == "__main__":
     main()
-
-
-    
-    
-    
-    
-
-
-
-
-      
-
-       
-     
-      
-
-           
-               
-       
