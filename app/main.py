@@ -60,9 +60,8 @@ def main():
         # If the command starts with "echo ", printing all arguments after 'echo'
         # This simulates the Unix 'echo' command while respecting single quotes
         # Single quotes preserve spaces and special characters literally
-        elif command.startswith("echo "):
-            # Using already parsed parts (quotes and escapes already handled correctly)
-            output = " ".join(parts[1:])
+        elif parts[0] == "echo":
+            output = " ".join(parts[1:])  # only arguments, no redirection
 
             # Handle stdout redirection
             if redirect_file:
