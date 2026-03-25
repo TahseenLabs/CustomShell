@@ -56,12 +56,24 @@ def main():
         elif command.startswith("echo "):
             # Using already parsed parts (quotes and escapes already handled correctly)
             output = " ".join(parts[1:])
+
+            # Handle stdout redirection
             if redirect_file:
-                # If output is redirected, write to file instead of printing to terminal
+                stdout_dir = os.path.dirname(redirect_file)
+                if stdout_dir:
+                    os.makedirs(stdout_dir, exist_ok=True)
                 with open(redirect_file, "w") as f:
                     print(output, file=f)
             else:
                 print(output)
+
+            # Handle stderr redirection (2>)
+            if stderr_file:
+                stderr_dir = os.path.dirname(stderr_file)
+                if stderr_dir:
+                    os.makedirs(stderr_dir, exist_ok=True)
+                with open(stderr_file, "w") as f:
+                    print(output, file=f, flush=True)
                 
         # pwd builtin
         elif command == "pwd":
