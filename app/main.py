@@ -20,24 +20,31 @@ def main():
         parts = shlex.split(command)
 
         redirect_file = None
+        redirect_mode = "w"  # default mode for stdout
         stderr_file = None
-        # Handle output redirections:
-        # - 2> redirects standard error to a file
-        # - > or 1> redirects standard output to a file
-        # This loop scans the command parts and removes any redirection tokens and their filenames,
-        # storing the target filenames in redirect_file and stderr_file.
-        # Supports multiple redirections in any order (e.g., "2> err.txt > out.txt").
+        stderr_mode = "w"    # default mode for stderr
+
         i = 0
         while i < len(parts):
             if parts[i] == "2>":
                 stderr_file = parts[i + 1]
+                stderr_mode = "w"
+                del parts[i:i+2]
+            elif parts[i] == "2>>":
+                stderr_file = parts[i + 1]
+                stderr_mode = "a"
                 del parts[i:i+2]
             elif parts[i] == ">" or parts[i] == "1>":
                 redirect_file = parts[i + 1]
+                redirect_mode = "w"
+                del parts[i:i+2]
+            elif parts[i] == ">>":
+                redirect_file = parts[i + 1]
+                redirect_mode = "a"
                 del parts[i:i+2]
             else:
                 i += 1
-
+        
         # Rebuilding command without redirection so builtins and execution work normally
         command = " ".join(parts)
         
