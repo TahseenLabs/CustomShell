@@ -142,11 +142,20 @@ def main():
                     stdout_dest = None
                     stderr_dest = None
                     try:
+                        # Ensure parent directories exist for stdout redirection
                         if redirect_file:
-                            os.makedirs(os.path.dirname(redirect_file), exist_ok=True)
+                            stdout_dir = os.path.dirname(redirect_file)
+                            if stdout_dir:  # skip if no directory (file in current dir)
+                               os.makedirs(stdout_dir, exist_ok=True)
                             stdout_dest = open(redirect_file, "w")
-                        if stderr_file:
-                            os.makedirs(os.path.dirname(stderr_file), exist_ok=True)
+
+                            stdout_dest = open(redirect_file, "w")
+                            
+                        # Ensure parent directories exist for stderr redirection
+                        if stderr_file: # skip if no directory (file in current dir)
+                            stderr_dir = os.path.dirname(stderr_file)
+                            if stderr_dir:  # skip if no directory (file in current dir)
+                                os.makedirs(stderr_dir, exist_ok=True)
                             stderr_dest = open(stderr_file, "w")
                         
                         # Run the external command with optional redirection
