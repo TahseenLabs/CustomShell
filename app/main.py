@@ -66,14 +66,6 @@ def main():
                     print(output, file=f)
             else:
                 print(output)
-
-            # Handle stderr redirection (2>)
-            if stderr_file:
-                stderr_dir = os.path.dirname(stderr_file)
-                if stderr_dir:
-                    os.makedirs(stderr_dir, exist_ok=True)
-                with open(stderr_file, "w") as f:
-                    print(output, file=f, flush=True)
                 
         # pwd builtin
         elif command == "pwd":
