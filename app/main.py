@@ -45,12 +45,8 @@ def main():
         # This simulates the Unix 'echo' command while respecting single quotes
         # Single quotes preserve spaces and special characters literally
         elif command.startswith("echo "):
-            # Using shlex to split the command while respecting quotes
-            parts = shlex.split(command)
-            # Joining all arguments after 'echo' to preserve spacing and handle 
-            # quoted input correctly
+            # Using already parsed parts (quotes and escapes already handled correctly)
             output = " ".join(parts[1:])
-        
             if redirect_file:
                 # If output is redirected, write to file instead of printing to terminal
                 with open(redirect_file, "w") as f:
