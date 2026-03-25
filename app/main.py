@@ -145,14 +145,10 @@ def main():
             if current_segment:
                 pipeline_segments.append(current_segment)
 
-            prev_stdout = None
-            processes = []
-
             for idx, seg in enumerate(pipeline_segments):
                 is_last = (idx == len(pipeline_segments) - 1)
-                stdin_src = prev_stdout
-                stdout_dest = open(redirect_file, redirect_mode, buffering=1) if is_last and redirect_file else subprocess.PIPE
 
+                # Built-in handling
                 if seg[0] in BUILTINS:
                     if seg[0] == "echo":
                         output = " ".join(seg[1:]) + "\n"
@@ -161,29 +157,32 @@ def main():
                     else:
                         output = ""
 
-                    if prev_stdout:
-                        output = prev_stdout.read().decode() + output
-                        prev_stdout.close()
+                    if 'prev_output' in locals() and prev_output:
+                        output = prev_output.decode() + output
+                        
+                    prev_output = output.encode()
 
-                    from io import BytesIO
-                    prev_stdout = BytesIO(output.encode())
                 else:
                     proc = subprocess.Popen(
-                        seg,
-                        stdin=stdin_src,
-                        stdout=stdout_dest,
-                        stderr=open(stderr_file, stderr_mode) if is_last and stderr_file else None
-                    )
-                    if prev_stdout and hasattr(prev_stdout, 'close'):
-                        prev_stdout.close()
-                    prev_stdout = proc.stdout
-                    processes.append(proc)
-
-            for proc in processes:
-                proc.wait()
-
-            if prev_stdout and not redirect_file:
-                print(prev_stdout.read().decode(), end="")
+                                seg,
+                                stdin=subprocess.PIPE if prev_output else None,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE if not is_last else (open(stderr_file, stderr_mode) if stderr_file else None)
+                            )
+                    # Feed previous output if exists
+                    out, err = proc.communicate(input=prev_output)
+                    prev_output = out
+            
+            # Handle final output
+            if prev_output:
+                if redirect_file:
+                    stdout_dir = os.path.dirname(redirect_file)
+                    if stdout_dir:
+                        os.makedirs(stdout_dir, exist_ok=True)
+                    with open(redirect_file, redirect_mode) as f:
+                        f.write(prev_output.decode())
+                else:
+                    print(prev_output.decode(), end="")
 
         elif parts[0] == "echo":
             output = " ".join(parts[1:])
