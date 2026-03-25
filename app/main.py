@@ -20,14 +20,23 @@ def main():
         parts = shlex.split(command)
 
         redirect_file = None
-        if ">" in parts:
-            idx = parts.index(">")
-            redirect_file = parts[idx + 1]
-            parts = parts[:idx]
-        elif "1>" in parts:
-            idx = parts.index("1>")
-            redirect_file = parts[idx + 1]
-            parts = parts[:idx]
+        stderr_file = None
+        # Handle output redirections:
+        # - 2> redirects standard error to a file
+        # - > or 1> redirects standard output to a file
+        # This loop scans the command parts and removes any redirection tokens and their filenames,
+        # storing the target filenames in redirect_file and stderr_file.
+        # Supports multiple redirections in any order (e.g., "2> err.txt > out.txt").
+        i = 0
+        while i < len(parts):
+            if parts[i] == "2>":
+                stderr_file = parts[i + 1]
+                del parts[i:i+2]
+            elif parts[i] == ">" or parts[i] == "1>":
+                redirect_file = parts[i + 1]
+                del parts[i:i+2]
+            else:
+                i += 1
 
         # Rebuilding command without redirection so builtins and execution work normally
         command = " ".join(parts)
@@ -127,26 +136,37 @@ def main():
                 if not os.path.isdir(dir_path):
                     continue
                 full_path = os.path.join(dir_path, cmd_name)
-                # Checking if file exists and is executable
+               # Checking if file exists and is executable
                 if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
                     try:
-                        # Running the external program with all arguments
-                        # If redirection is specified, send stdout to file (stderr remains on terminal)
-                        # argv[0] must be the typed command, not full_path
-                        if redirect_file:
-                            with open(redirect_file, "w") as f:
-                                subprocess.run(args, executable=full_path, stdout=f)
-                        else:
-                            subprocess.run(args, executable=full_path)
+                        # Open files for redirection if needed
+                        stdout_dest = open(redirect_file, "w") if redirect_file else None
+                        stderr_dest = open(stderr_file, "w") if stderr_file else None
+                        
+                        # Run the external command with optional redirection
+                        process = subprocess.Popen(
+                            args,
+                            stdout=stdout_dest or None,  # None means inherit parent's stdout
+                            stderr=stderr_dest or None
+                        )
+
+                        # Wait for the process to finish
+                        process.communicate()
+
+                        # Close any opened files
+                        if stdout_dest:
+                            stdout_dest.close()
+                        if stderr_dest:
+                            stderr_dest.close()
+                            
                     except Exception as e:
                         print(f"Error running {cmd_name}: {e}")
+                        
                     found = True
                     break
-            # Case 3: not found anywhere
-            if not found:
-                print(f"{cmd_name}: command not found")
 
 # Entry point of the program
 # Ensures main() runs only when the script is executed directly
 if __name__ == "__main__":
     main()
+
