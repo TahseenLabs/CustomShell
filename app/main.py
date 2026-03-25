@@ -93,6 +93,8 @@ def main():
     
         # Reading a line of input from the user 
         command = input()
+        raw_command = command  # save original before any processing
+
         
         # Parsing output redirection (>, 1>) while respecting quotes
         # Extracts the output file and removes redirection tokens from the command
@@ -224,7 +226,7 @@ def main():
                 continue
 
             # --- Pipeline handling ---
-            raw_parts = shlex.split(command)
+            raw_parts = shlex.split(raw_command)
             pipeline_segments = []
             current_segment = []
             for token in raw_parts:
