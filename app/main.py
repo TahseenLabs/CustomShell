@@ -86,24 +86,20 @@ def setup_readline():
 def main():
     builtins = BUILTINS
     setup_readline()
-    # Infinite loop to continuously display the shell prompt,
-    # mimicking how a real shell waits for user commands repeatedly
+    
     while True:
         sys.stdout.write("$ ")
+        sys.stdout.flush()
     
-        # Reading a line of input from the user 
         command = input()
-        raw_command = command  # save original before any processing
+        raw_command = command
 
-        
-        # Parsing output redirection (>, 1>) while respecting quotes
-        # Extracts the output file and removes redirection tokens from the command
         parts = shlex.split(command)
 
         redirect_file = None
-        redirect_mode = "w"  # default mode for stdout
+        redirect_mode = "w"
         stderr_file = None
-        stderr_mode = "w"    # default mode for stderr
+        stderr_mode = "w"
 
         i = 0
         while i < len(parts):
@@ -119,113 +115,23 @@ def main():
                 redirect_file = parts[i + 1]
                 redirect_mode = "w"
                 del parts[i:i+2]
-            elif parts[i] == ">>" or parts[i] == "1>>": 
+            elif parts[i] == ">>" or parts[i] == "1>>":
                 redirect_file = parts[i + 1]
                 redirect_mode = "a"
                 del parts[i:i+2]
             else:
                 i += 1
-        
-        # Rebuilding command without redirection so builtins and execution work normally
+
         command = " ".join(parts)
-        
-        # Skip empty input
+
         if not command:
             continue
-        
-        # If the user types "exit", break out of the loop
-        # This allows the shell to terminate gracefully
+
         if command == "exit":
             break
-        
-        # If the command starts with "echo ", printing all arguments after 'echo'
-        # This simulates the Unix 'echo' command while respecting single quotes
-        # Single quotes preserve spaces and special characters literally
-        elif parts[0] == "echo":
-            output = " ".join(parts[1:])  # only arguments, no redirection
 
-            # Handle stdout redirection
-            if redirect_file:
-                stdout_dir = os.path.dirname(redirect_file)
-                if stdout_dir:
-                    os.makedirs(stdout_dir, exist_ok=True)
-                with open(redirect_file, redirect_mode) as f: 
-                    print(output, file=f)
-            else:
-                print(output)
-            
-            # Always create the stderr file if 2> was used
-            if stderr_file:
-                stderr_dir = os.path.dirname(stderr_file)
-                if stderr_dir:
-                    os.makedirs(stderr_dir, exist_ok=True)
-                # Open and immediately close to ensure the file exists (empty)
-                with open(stderr_file, stderr_mode) as f:  # use correct mode
-                    pass
-        # pwd builtin
-        elif command == "pwd":
-            # Printing the current working directory
-            print(os.getcwd())
-        
-        # cd builtin (absolute paths, relative paths, and ~)
-        elif command.startswith("cd "):
-            # Extracting the target directory
-            target_dir = command[3:].strip()
-
-            # Handling ~ for home directory
-            if target_dir == "~":
-                new_dir = os.environ.get("HOME", os.getcwd())
-            # Handling absolute paths
-            elif target_dir.startswith("/"):
-                new_dir = target_dir
-            # Handling relative paths
-            else:
-                new_dir = os.path.join(os.getcwd(), target_dir)
-
-            # Checking if the directory exists
-            if os.path.isdir(new_dir):
-                try:
-                    os.chdir(new_dir)
-                except Exception:
-                    # Directory exists but cannot be accessed
-                    print(f"cd: {target_dir}: No such file or directory")
-            else:
-                # Directory does not exist
-                print(f"cd: {target_dir}: No such file or directory")
-        
-        # Type builtin
-        elif command.startswith("type "):
-            # Extracting the argument after "type "
-            cmd_name = command[5:].strip()
-            # Case 1: builtin command
-            if cmd_name in builtins:
-                print(f"{cmd_name} is a shell builtin")
-
-            # Case 2: searching for executable in PATH
-            else:
-                found = False
-                # Getting PATH environment variable (use os.pathsep to split OS-agnostic)
-                path_dirs = os.environ.get("PATH", "").split(os.pathsep)
-                for dir_path in path_dirs:
-                    # Skipping directories that don't exist
-                    if not os.path.isdir(dir_path):
-                        continue
-                    full_path = os.path.join(dir_path, cmd_name)
-                    # Checking if file exists and is executable
-                    if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                        print(f"{cmd_name} is {full_path}")
-                        found = True
-                        break
-                # Case 3: not found anywhere
-                if not found:
-                    print(f"{cmd_name}: not found")
-        
-        # For any other command, run it as an external program if executable
-        else:
-            if not parts:
-                continue
-
-            # --- Pipeline handling ---
+        # Pipeline check FIRST, before any builtin handling
+        elif "|" in parts:
             raw_parts = shlex.split(raw_command)
             pipeline_segments = []
             current_segment = []
@@ -244,97 +150,145 @@ def main():
 
             for idx, seg in enumerate(pipeline_segments):
                 is_last = (idx == len(pipeline_segments) - 1)
-                
-                # Determine stdin for this segment
                 stdin_src = prev_stdout
-
-                # Determine stdout for this segment
                 stdout_dest = open(redirect_file, redirect_mode, buffering=1) if is_last and redirect_file else subprocess.PIPE
 
-                # Builtin handling
                 if seg[0] in BUILTINS:
                     if seg[0] == "echo":
                         output = " ".join(seg[1:]) + "\n"
                     elif seg[0] == "pwd":
                         output = os.getcwd() + "\n"
                     else:
-                        output = ""  # for other builtins in pipelines, extend as needed
+                        output = ""
 
                     if prev_stdout:
-                        # Read from previous stdout
                         output = prev_stdout.read().decode() + output
                         prev_stdout.close()
 
-                    # Simulate pipe for next segment
                     from io import BytesIO
                     prev_stdout = BytesIO(output.encode())
                 else:
-                    # External command
                     proc = subprocess.Popen(
                         seg,
                         stdin=stdin_src,
                         stdout=stdout_dest,
                         stderr=open(stderr_file, stderr_mode) if is_last and stderr_file else None
                     )
-                    if prev_stdout and prev_stdout != subprocess.PIPE:
+                    if prev_stdout and hasattr(prev_stdout, 'close'):
                         prev_stdout.close()
                     prev_stdout = proc.stdout
                     processes.append(proc)
-            
-            # Wait for all external processes to finish
+
             for proc in processes:
                 proc.wait()
-                
-            # If last segment was a builtin and stdout not redirected, print its output
+
             if prev_stdout and not redirect_file:
                 print(prev_stdout.read().decode(), end="")
-            
-            else:
-                # Single external command
-                cmd_name = parts[0]
-                args = parts
-                found = False
 
+        elif parts[0] == "echo":
+            output = " ".join(parts[1:])
+            if redirect_file:
+                stdout_dir = os.path.dirname(redirect_file)
+                if stdout_dir:
+                    os.makedirs(stdout_dir, exist_ok=True)
+                with open(redirect_file, redirect_mode) as f:
+                    print(output, file=f)
+            else:
+                print(output)
+            if stderr_file:
+                stderr_dir = os.path.dirname(stderr_file)
+                if stderr_dir:
+                    os.makedirs(stderr_dir, exist_ok=True)
+                with open(stderr_file, stderr_mode) as f:
+                    pass
+
+        elif command == "pwd":
+            print(os.getcwd())
+
+        elif command.startswith("cd "):
+            target_dir = command[3:].strip()
+            if target_dir == "~":
+                new_dir = os.environ.get("HOME", os.getcwd())
+            elif target_dir.startswith("/"):
+                new_dir = target_dir
+            else:
+                new_dir = os.path.join(os.getcwd(), target_dir)
+
+            if os.path.isdir(new_dir):
+                try:
+                    os.chdir(new_dir)
+                except Exception:
+                    print(f"cd: {target_dir}: No such file or directory")
+            else:
+                print(f"cd: {target_dir}: No such file or directory")
+
+        elif command.startswith("type "):
+            cmd_name = command[5:].strip()
+            if cmd_name in BUILTINS:
+                print(f"{cmd_name} is a shell builtin")
+            else:
+                found = False
                 path_dirs = os.environ.get("PATH", "").split(os.pathsep)
                 for dir_path in path_dirs:
                     if not os.path.isdir(dir_path):
                         continue
                     full_path = os.path.join(dir_path, cmd_name)
                     if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                        stdout_dest = None
-                        stderr_dest = None
-                        try:
-                            if redirect_file:
-                                stdout_dir = os.path.dirname(redirect_file)
-                                if stdout_dir:
-                                    os.makedirs(stdout_dir, exist_ok=True)
-                                stdout_dest = open(redirect_file, redirect_mode)
-                            if stderr_file:
-                                stderr_dir = os.path.dirname(stderr_file)
-                                if stderr_dir:
-                                    os.makedirs(stderr_dir, exist_ok=True)
-                                stderr_dest = open(stderr_file, stderr_mode)
-
-                            process = subprocess.Popen(
-                                args,
-                                stdout=stdout_dest or None,
-                                stderr=stderr_dest or None
-                            )
-                            process.communicate()
-
-                        except Exception as e:
-                            print(f"Error running {cmd_name}: {e}")
-                        finally:
-                            if stdout_dest:
-                                stdout_dest.close()
-                            if stderr_dest:
-                                stderr_dest.close()
-
+                        print(f"{cmd_name} is {full_path}")
                         found = True
                         break
-
                 if not found:
-                    print(f"{cmd_name}: command not found")
+                    print(f"{cmd_name}: not found")
+
+        else:
+            if not parts:
+                continue
+
+            cmd_name = parts[0]
+            args = parts
+            found = False
+
+            path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+            for dir_path in path_dirs:
+                if not os.path.isdir(dir_path):
+                    continue
+                full_path = os.path.join(dir_path, cmd_name)
+                if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                    stdout_dest = None
+                    stderr_dest = None
+                    try:
+                        if redirect_file:
+                            stdout_dir = os.path.dirname(redirect_file)
+                            if stdout_dir:
+                                os.makedirs(stdout_dir, exist_ok=True)
+                            stdout_dest = open(redirect_file, redirect_mode)
+                        if stderr_file:
+                            stderr_dir = os.path.dirname(stderr_file)
+                            if stderr_dir:
+                                os.makedirs(stderr_dir, exist_ok=True)
+                            stderr_dest = open(stderr_file, stderr_mode)
+
+                        process = subprocess.Popen(
+                            args,
+                            stdout=stdout_dest or None,
+                            stderr=stderr_dest or None
+                        )
+                        process.communicate()
+
+                    except Exception as e:
+                        print(f"Error running {cmd_name}: {e}")
+                    finally:
+                        if stdout_dest:
+                            stdout_dest.close()
+                        if stderr_dest:
+                            stderr_dest.close()
+
+                    found = True
+                    break
+
+            if not found:
+                print(f"{cmd_name}: command not found")
+    
 
 
 # Entry point of the program
