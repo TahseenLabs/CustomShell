@@ -38,7 +38,7 @@ def main():
                 redirect_file = parts[i + 1]
                 redirect_mode = "w"
                 del parts[i:i+2]
-            elif parts[i] == ">>":
+            elif parts[i] == ">>" or parts[i] == "1>>": 
                 redirect_file = parts[i + 1]
                 redirect_mode = "a"
                 del parts[i:i+2]
