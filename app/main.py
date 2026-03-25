@@ -220,13 +220,10 @@ def main():
         
         # For any other command, run it as an external program if executable
         else:
-            # Using already parsed parts (redirection removed)
             if not parts:
-                continue # Skipping empty inputs
-            
+                continue
+
             # --- Pipeline handling ---
-            # Split the original command into pipeline segments by |
-            # We re-split from scratch to preserve each segment cleanly
             raw_parts = shlex.split(command)
             pipeline_segments = []
             current_segment = []
@@ -241,16 +238,13 @@ def main():
                 pipeline_segments.append(current_segment)
 
             if len(pipeline_segments) > 1:
-                # Build a chain of processes connected by pipes
                 processes = []
-                prev_stdout = None  # stdout of previous process becomes stdin of next
+                prev_stdout = None
 
                 for idx, seg in enumerate(pipeline_segments):
                     is_last = (idx == len(pipeline_segments) - 1)
+                    stdin_src = prev_stdout
 
-                    stdin_src = prev_stdout  # None for first process
-
-                    # Last segment respects any stdout/stderr redirection
                     if is_last:
                         stdout_dest = open(redirect_file, redirect_mode) if redirect_file else None
                         stderr_dest = open(stderr_file, stderr_mode) if stderr_file else None
@@ -265,81 +259,65 @@ def main():
                         stderr=stderr_dest
                     )
 
-                    # Close the read end of the previous pipe in the parent
-                    # so the previous process gets SIGPIPE when this one exits
                     if prev_stdout is not None:
                         prev_stdout.close()
 
                     prev_stdout = proc.stdout
                     processes.append((proc, stdout_dest, stderr_dest))
 
-                # Wait for all processes to finish
                 for proc, stdout_dest, stderr_dest in processes:
                     proc.wait()
                     if stdout_dest and stdout_dest != subprocess.PIPE:
                         stdout_dest.close()
                     if stderr_dest:
                         stderr_dest.close()
+
             else:
-                # Single external command 
+                # Single external command
                 cmd_name = parts[0]
-                args = parts  # includes program name as arg0
-
+                args = parts
                 found = False
-            # Searching PATH for executable
-            path_dirs = os.environ.get("PATH", "").split(os.pathsep)
-            for dir_path in path_dirs:
-                if not os.path.isdir(dir_path):
-                    continue
-                full_path = os.path.join(dir_path, cmd_name)
-                # Checking if file exists and is executable
-                if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                    # Open files for redirection if needed
-                    stdout_dest = None
-                    stderr_dest = None
-                    try:
-                        # Ensure parent directories exist for stdout redirection
-                        if redirect_file:
-                            stdout_dir = os.path.dirname(redirect_file)
-                            if stdout_dir:  # skip if no directory (file in current dir)
-                               os.makedirs(stdout_dir, exist_ok=True)
-                            stdout_dest = open(redirect_file, redirect_mode) if redirect_file else None
-                            stderr_dest = open(stderr_file, stderr_mode) if stderr_file else None
-                            
-                        # Ensure parent directories exist for stderr redirection
-                        if stderr_file: # skip if no directory (file in current dir)
-                            stderr_dir = os.path.dirname(stderr_file)
-                            if stderr_dir:  # skip if no directory (file in current dir)
-                                os.makedirs(stderr_dir, exist_ok=True)
-                            stderr_dest = open(stderr_file, stderr_mode) if stderr_file else None
-                        
-                        # Run the external command with optional redirection
-                        process = subprocess.Popen(
-                            args,
-                            stdout=stdout_dest or None,  # None means inherit parent's stdout
-                            stderr=stderr_dest or None
-                        )
 
-                        # Wait for the process to finish
-                        process.communicate()
+                path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+                for dir_path in path_dirs:
+                    if not os.path.isdir(dir_path):
+                        continue
+                    full_path = os.path.join(dir_path, cmd_name)
+                    if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                        stdout_dest = None
+                        stderr_dest = None
+                        try:
+                            if redirect_file:
+                                stdout_dir = os.path.dirname(redirect_file)
+                                if stdout_dir:
+                                    os.makedirs(stdout_dir, exist_ok=True)
+                                stdout_dest = open(redirect_file, redirect_mode)
+                            if stderr_file:
+                                stderr_dir = os.path.dirname(stderr_file)
+                                if stderr_dir:
+                                    os.makedirs(stderr_dir, exist_ok=True)
+                                stderr_dest = open(stderr_file, stderr_mode)
 
-                    except Exception as e:
-                        print(f"Error running {cmd_name}: {e}")
+                            process = subprocess.Popen(
+                                args,
+                                stdout=stdout_dest or None,
+                                stderr=stderr_dest or None
+                            )
+                            process.communicate()
 
-                    finally:
-                        # Close any opened files
-                        if stdout_dest:
-                            stdout_dest.close()
-                        if stderr_dest:
-                            stderr_dest.close()
+                        except Exception as e:
+                            print(f"Error running {cmd_name}: {e}")
+                        finally:
+                            if stdout_dest:
+                                stdout_dest.close()
+                            if stderr_dest:
+                                stderr_dest.close()
 
-                    found = True
-                    break
+                        found = True
+                        break
 
-            # If not found anywhere, print error
-            if not found:
-                print(f"{cmd_name}: command not found")
-
+                if not found:
+                    print(f"{cmd_name}: command not found")
 
 
 # Entry point of the program
