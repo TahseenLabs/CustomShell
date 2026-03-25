@@ -193,6 +193,12 @@ def main():
                     found = True
                     break
 
+            # If not found anywhere, print error
+            if not found:
+                print(f"{cmd_name}: command not found")
+
+
+
 # Entry point of the program
 # Ensures main() runs only when the script is executed directly
 if __name__ == "__main__":
