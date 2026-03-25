@@ -66,7 +66,15 @@ def main():
                     print(output, file=f)
             else:
                 print(output)
-                
+            
+            # Always create the stderr file if 2> was used
+            if stderr_file:
+                stderr_dir = os.path.dirname(stderr_file)
+                if stderr_dir:
+                    os.makedirs(stderr_dir, exist_ok=True)
+                # Open and immediately close to ensure the file exists (empty)
+                with open(stderr_file, "w") as f:
+                    pass
         # pwd builtin
         elif command == "pwd":
             # Printing the current working directory
