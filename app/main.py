@@ -136,12 +136,18 @@ def main():
                 if not os.path.isdir(dir_path):
                     continue
                 full_path = os.path.join(dir_path, cmd_name)
-               # Checking if file exists and is executable
+                # Checking if file exists and is executable
                 if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                    # Open files for redirection if needed
+                    stdout_dest = None
+                    stderr_dest = None
                     try:
-                        # Open files for redirection if needed
-                        stdout_dest = open(redirect_file, "w") if redirect_file else None
-                        stderr_dest = open(stderr_file, "w") if stderr_file else None
+                        if redirect_file:
+                            os.makedirs(os.path.dirname(redirect_file), exist_ok=True)
+                            stdout_dest = open(redirect_file, "w")
+                        if stderr_file:
+                            os.makedirs(os.path.dirname(stderr_file), exist_ok=True)
+                            stderr_dest = open(stderr_file, "w")
                         
                         # Run the external command with optional redirection
                         process = subprocess.Popen(
@@ -153,15 +159,16 @@ def main():
                         # Wait for the process to finish
                         process.communicate()
 
+                    except Exception as e:
+                        print(f"Error running {cmd_name}: {e}")
+
+                    finally:
                         # Close any opened files
                         if stdout_dest:
                             stdout_dest.close()
                         if stderr_dest:
                             stderr_dest.close()
-                            
-                    except Exception as e:
-                        print(f"Error running {cmd_name}: {e}")
-                        
+
                     found = True
                     break
 
