@@ -239,41 +239,56 @@ def main():
             if current_segment:
                 pipeline_segments.append(current_segment)
 
-            if len(pipeline_segments) > 1:
-                processes = []
-                prev_stdout = None
+            prev_stdout = None
+            processes = []
 
-                for idx, seg in enumerate(pipeline_segments):
-                    is_last = (idx == len(pipeline_segments) - 1)
-                    stdin_src = prev_stdout
+            for idx, seg in enumerate(pipeline_segments):
+                is_last = (idx == len(pipeline_segments) - 1)
+                
+                # Determine stdin for this segment
+                stdin_src = prev_stdout
 
-                    if is_last:
-                        stdout_dest = open(redirect_file, redirect_mode) if redirect_file else None
-                        stderr_dest = open(stderr_file, stderr_mode) if stderr_file else None
+                # Determine stdout for this segment
+                stdout_dest = open(redirect_file, redirect_mode, buffering=1) if is_last and redirect_file else subprocess.PIPE
+
+                # Builtin handling
+                if seg[0] in BUILTINS:
+                    if seg[0] == "echo":
+                        output = " ".join(seg[1:]) + "\n"
+                    elif seg[0] == "pwd":
+                        output = os.getcwd() + "\n"
                     else:
-                        stdout_dest = subprocess.PIPE
-                        stderr_dest = None
+                        output = ""  # for other builtins in pipelines, extend as needed
 
+                    if prev_stdout:
+                        # Read from previous stdout
+                        output = prev_stdout.read().decode() + output
+                        prev_stdout.close()
+
+                    # Simulate pipe for next segment
+                    from io import BytesIO
+                    prev_stdout = BytesIO(output.encode())
+                else:
+                    # External command
                     proc = subprocess.Popen(
                         seg,
                         stdin=stdin_src,
                         stdout=stdout_dest,
-                        stderr=stderr_dest
+                        stderr=open(stderr_file, stderr_mode) if is_last and stderr_file else None
                     )
-
-                    if prev_stdout is not None:
+                    if prev_stdout and prev_stdout != subprocess.PIPE:
                         prev_stdout.close()
-
                     prev_stdout = proc.stdout
-                    processes.append((proc, stdout_dest, stderr_dest))
-
-                for proc, stdout_dest, stderr_dest in processes:
-                    proc.wait()
-                    if stdout_dest and stdout_dest != subprocess.PIPE:
-                        stdout_dest.close()
-                    if stderr_dest:
-                        stderr_dest.close()
-
+                    processes.append(proc)
+            
+            # Wait for all external processes to finish
+            for proc in processes:
+                proc.wait()
+                
+            # If last segment was a builtin and stdout not redirected, print its output
+            if prev_stdout and not redirect_file:
+                print(prev_stdout.read().decode(), end="")
+            
             else:
                 # Single external command
                 cmd_name = parts[0]
