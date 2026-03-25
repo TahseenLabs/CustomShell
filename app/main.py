@@ -69,7 +69,7 @@ def main():
                 stdout_dir = os.path.dirname(redirect_file)
                 if stdout_dir:
                     os.makedirs(stdout_dir, exist_ok=True)
-                with open(redirect_file, "w") as f:
+                with open(redirect_file, redirect_mode) as f: 
                     print(output, file=f)
             else:
                 print(output)
@@ -166,9 +166,8 @@ def main():
                             stdout_dir = os.path.dirname(redirect_file)
                             if stdout_dir:  # skip if no directory (file in current dir)
                                os.makedirs(stdout_dir, exist_ok=True)
-                            stdout_dest = open(redirect_file, "w")
-
-                            stdout_dest = open(redirect_file, "w")
+                            stdout_dest = open(redirect_file, redirect_mode) if redirect_file else None
+                            stderr_dest = open(stderr_file, stderr_mode) if stderr_file else None
                             
                         # Ensure parent directories exist for stderr redirection
                         if stderr_file: # skip if no directory (file in current dir)
