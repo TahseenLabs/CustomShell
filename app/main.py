@@ -2,11 +2,66 @@ import sys
 import os
 import subprocess
 import shlex
+import readline
 
+def get_executables_from_path():
+    """Return all executable names found in PATH directories."""
+    executables = set()
+    path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+    for dir_path in path_dirs:
+        if not os.path.isdir(dir_path):
+            continue
+        try:
+            for name in os.listdir(dir_path):
+                full_path = os.path.join(dir_path, name)
+                if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                    executables.add(name)
+        except PermissionError:
+            continue
+    return executables
+
+# All builtin command names
+BUILTINS = ["echo", "exit", "type", "pwd", "cd"]
+
+def completer(text, state):
+    """
+    Readline completer function.
+    - state=0: first call, compute matches
+    - state=N: return Nth match (or None if exhausted)
+    """
+    # We store matches on the function object to avoid recomputing
+    if state == 0:
+        # Build full candidate list: builtins + PATH executables
+        all_commands = BUILTINS + sorted(get_executables_from_path())
+        completer.matches = [c + " " for c in all_commands if c.startswith(text)]
+ 
+    if state < len(completer.matches):
+        return completer.matches[state]
+    return None
+ 
+ 
+def display_matches(substitution, matches, longest_match_length):
+    """
+    Custom display hook for when there are multiple completions.
+    Prints them on a new line, then reprints the prompt + current input.
+    """
+    print()  # move past current input line
+    print("  ".join(m.strip() for m in matches))
+    sys.stdout.write("$ " + readline.get_line_buffer())
+    sys.stdout.flush()
+ 
+ 
+def setup_readline():
+    readline.set_completer(completer)
+    readline.set_completion_display_matches_hook(display_matches)
+    # Complete on TAB only
+    readline.parse_and_bind("tab: complete")
+    # Treat only whitespace as word break so whole command is the "text"
+    readline.set_completer_delims(" \t\n")
 
 def main():
-    # List of shell builtin commands
-    builtins = ["echo", "exit", "type", "pwd", "cd"]
+    builtins = BUILTINS
+    setup_readline()
     # Infinite loop to continuously display the shell prompt,
     # mimicking how a real shell waits for user commands repeatedly
     while True:
