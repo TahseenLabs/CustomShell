@@ -24,22 +24,46 @@ def get_executables_from_path():
 BUILTINS = ["echo", "exit", "type", "pwd", "cd"]
 
 def completer(text, state):
-    """
-    Readline completer function.
-    - state=0: first call, compute matches
-    - state=N: return Nth match (or None if exhausted)
-    """
-    # We store matches on the function object to avoid recomputing
     if state == 0:
-        # Build full candidate list: builtins + PATH executables
-        all_commands = BUILTINS + sorted(get_executables_from_path())
-        completer.matches = [c + " " for c in all_commands if c.startswith(text)]
- 
+        buffer = readline.get_line_buffer()
+
+        # Command completion (no space typed yet)
+        if ' ' not in buffer:
+            all_commands = BUILTINS + sorted(get_executables_from_path())
+            completer.matches = [c + " " for c in all_commands if c.startswith(text)]
+
+        # Filename/directory argument completion
+        else:
+            # Split text into directory part and file prefix
+            # e.g. "foo/bar/ba" -> dir="foo/bar/", prefix="ba"
+            if "/" in text:
+                dir_part = text[:text.rfind("/") + 1]
+                prefix = text[text.rfind("/") + 1:]
+            else:
+                dir_part = ""
+                prefix = text
+
+            search_dir = dir_part if dir_part else "."
+
+            try:
+                entries = os.listdir(search_dir)
+            except OSError:
+                entries = []
+
+            matches = []
+            for entry in entries:
+                if entry.startswith(prefix):
+                    full = dir_part + entry
+                    if os.path.isdir(os.path.join(search_dir, entry)):
+                        matches.append(full + "/")  # no trailing space for dirs
+                    else:
+                        matches.append(full + " ")  # trailing space for files
+            completer.matches = sorted(matches)
+
     if state < len(completer.matches):
         return completer.matches[state]
     return None
- 
- 
+
 def display_matches(substitution, matches, longest_match_length):
     """
     Custom display hook for when there are multiple completions.
