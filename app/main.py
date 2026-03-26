@@ -216,24 +216,20 @@ def main():
 
             # Handle final output
             if prev_proc is not None:
-                out, _ = prev_proc.communicate()
                 if redirect_file:
+                    # Need to capture and write to file
+                    out, _ = prev_proc.communicate()
                     stdout_dir = os.path.dirname(redirect_file)
                     if stdout_dir:
                         os.makedirs(stdout_dir, exist_ok=True)
                     with open(redirect_file, redirect_mode) as f:
                         f.write(out.decode())
                 else:
-                    print(out.decode(), end="")
-            elif prev_output:
-                if redirect_file:
-                    stdout_dir = os.path.dirname(redirect_file)
-                    if stdout_dir:
-                        os.makedirs(stdout_dir, exist_ok=True)
-                    with open(redirect_file, redirect_mode) as f:
-                        f.write(prev_output.decode())
-                else:
-                    print(prev_output.decode(), end="")
+                    # Let the last process write directly to our stdout
+                    # Re-open its stdout and stream it to sys.stdout
+                    import shutil
+                    shutil.copyfileobj(prev_proc.stdout, sys.stdout.buffer)
+                    prev_proc.wait()
 
         elif parts[0] == "echo":
             output = " ".join(parts[1:])
