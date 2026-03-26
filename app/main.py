@@ -184,20 +184,34 @@ def main():
                     prev_output = output.encode()
 
                 else:
-                    stdin_source = subprocess.PIPE if (prev_output is not None or prev_proc is None) else prev_proc.stdout
-                    proc = subprocess.Popen(
-                        seg,
-                        stdin=stdin_source,
-                        stdout=subprocess.PIPE,
-                        stderr=(open(stderr_file, stderr_mode) if (stderr_file and is_last) else subprocess.PIPE)
-                    )
                     if prev_output is not None:
-                        # flush builtin output into this process
+                        # Coming from a builtin — use PIPE and write manually
+                        proc = subprocess.Popen(
+                            seg,
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=(open(stderr_file, stderr_mode) if (stderr_file and is_last) else subprocess.PIPE)
+                        )
                         proc.stdin.write(prev_output)
                         proc.stdin.close()
                         prev_output = None
                     elif prev_proc is not None:
-                        prev_proc.stdout.close()  # allow prev_proc to get SIGPIPE
+                        # Chain directly: pass prev_proc.stdout as stdin
+                        proc = subprocess.Popen(
+                            seg,
+                            stdin=prev_proc.stdout,
+                            stdout=subprocess.PIPE,
+                            stderr=(open(stderr_file, stderr_mode) if (stderr_file and is_last) else subprocess.PIPE)
+                        )
+                        prev_proc.stdout.close()  # close parent's copy IMMEDIATELY after hand-off
+                    else:
+                        # First process, no prior input
+                        proc = subprocess.Popen(
+                            seg,
+                            stdin=None,
+                            stdout=subprocess.PIPE,
+                            stderr=(open(stderr_file, stderr_mode) if (stderr_file and is_last) else subprocess.PIPE)
+                        )
                     prev_proc = proc
 
             # Handle final output
