@@ -185,35 +185,41 @@ def main():
                     prev_output = output.encode()
 
                 else:
+                    # For the last process: stdout goes to file or directly to terminal
+                    if is_last and not redirect_file:
+                        stdout_dest = None  # inherit our stdout directly
+                    else:
+                        stdout_dest = subprocess.PIPE
+
+                    stderr_dest = (open(stderr_file, stderr_mode) if (stderr_file and is_last) else subprocess.PIPE)
+
                     if prev_output is not None:
-                        # Coming from a builtin — use PIPE and write manually
                         proc = subprocess.Popen(
                             seg,
                             stdin=subprocess.PIPE,
-                            stdout=subprocess.PIPE,
-                            stderr=(open(stderr_file, stderr_mode) if (stderr_file and is_last) else subprocess.PIPE)
+                            stdout=stdout_dest,
+                            stderr=stderr_dest
                         )
                         proc.stdin.write(prev_output)
                         proc.stdin.close()
                         prev_output = None
                     elif prev_proc is not None:
-                        # Chain directly: pass prev_proc.stdout as stdin
                         proc = subprocess.Popen(
                             seg,
                             stdin=prev_proc.stdout,
-                            stdout=subprocess.PIPE,
-                            stderr=(open(stderr_file, stderr_mode) if (stderr_file and is_last) else subprocess.PIPE)
+                            stdout=stdout_dest,
+                            stderr=stderr_dest
                         )
-                        prev_proc.stdout.close()  # close parent's copy IMMEDIATELY after hand-off
+                        prev_proc.stdout.close()
                     else:
-                        # First process, no prior input
                         proc = subprocess.Popen(
                             seg,
                             stdin=None,
-                            stdout=subprocess.PIPE,
-                            stderr=(open(stderr_file, stderr_mode) if (stderr_file and is_last) else subprocess.PIPE)
+                            stdout=stdout_dest,
+                            stderr=stderr_dest
                         )
                     prev_proc = proc
+                        
 
             # Handle final output
             if prev_proc is not None:
@@ -225,10 +231,7 @@ def main():
                     with open(redirect_file, redirect_mode) as f:
                         f.write(out.decode())
                 else:
-                    import shutil
-                    shutil.copyfileobj(prev_proc.stdout, sys.stdout.buffer)
-                    sys.stdout.buffer.flush()
-                    prev_proc.wait()
+                    prev_proc.wait()  # stdout already going to terminal directly
             elif prev_output:
                 if redirect_file:
                     stdout_dir = os.path.dirname(redirect_file)
