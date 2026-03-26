@@ -336,6 +336,7 @@ def main():
                 start = 1 if limit is None else max(1, hist_len - limit + 1)
                 for i in range(start, hist_len + 1):
                     print(f"    {i}  {readline.get_history_item(i)}")
+                sys.stdout.flush()
 
         elif command.startswith("cd "):
             target_dir = command[3:].strip()
