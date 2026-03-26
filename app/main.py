@@ -23,7 +23,7 @@ def get_executables_from_path():
 # All builtin command names
 BUILTINS = ["echo", "exit", "type", "pwd", "cd"]
 
-def completer(text, state):
+def completer(text, state):     
     if state == 0:
         buffer = readline.get_line_buffer()
 
@@ -145,10 +145,11 @@ def main():
             if current_segment:
                 pipeline_segments.append(current_segment)
 
+            prev_output = None  # initialize before the loop
+
             for idx, seg in enumerate(pipeline_segments):
                 is_last = (idx == len(pipeline_segments) - 1)
 
-                
                 # Built-in handling
                 if seg[0] in BUILTINS:
                     if seg[0] == "echo":
@@ -174,9 +175,18 @@ def main():
                     else:
                         output = ""
 
-                    # Do NOT prepend prev_output — builtins like type/pwd ignore stdin
                     prev_output = output.encode()
-            
+
+                else:
+                    proc = subprocess.Popen(
+                        seg,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=(open(stderr_file, stderr_mode) if (stderr_file and is_last) else subprocess.PIPE)
+                    )
+                    out, err = proc.communicate(input=prev_output)
+                    prev_output = out
+
             # Handle final output
             if prev_output:
                 if redirect_file:
