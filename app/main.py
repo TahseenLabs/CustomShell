@@ -22,7 +22,7 @@ def get_executables_from_path():
 
 # All builtin command names
 BUILTINS = ["echo", "exit", "type", "pwd", "cd", "history"]
-HISTORY_FILE = os.path.expanduser("~/.shell_history")
+HISTORY_FILE = os.environ.get("HISTFILE", os.path.expanduser("~/.shell_history"))
 
 
 def completer(text, state):     
@@ -87,6 +87,11 @@ def setup_readline():
     readline.parse_and_bind('"\\e[A": history-search-backward')
     readline.parse_and_bind('"\\e[B": history-search-forward')
     readline.set_history_length(1000)
+    if os.path.exists(HISTORY_FILE):
+        try:
+            readline.read_history_file(HISTORY_FILE)
+        except Exception:
+            pass
 
 
 def main():
