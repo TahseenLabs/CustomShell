@@ -148,7 +148,6 @@ def main():
                 print(f"bash: {command}: event not found")
                 continue
 
-        readline.add_history(command)
         readline.write_history_file(HISTORY_FILE)
 
         if command == "exit":
