@@ -91,6 +91,7 @@ def setup_readline():
 def main():
     builtins = BUILTINS
     setup_readline()
+    last_appended = 0  # tracks how many entries have been appended to file
     
     while True:
         command = input("$ ")
@@ -317,10 +318,14 @@ def main():
                     print(f"bash: history: {e}")
 
             elif args_parts and args_parts[0] == "-a" and len(args_parts) >= 2:
-                # Append current session history to file
+                # Append only new entries since last append
                 filepath = args_parts[1]
                 try:
-                    readline.append_history_file(readline.get_current_history_length(), filepath)
+                    hist_len = readline.get_current_history_length()
+                    new_entries = hist_len - last_appended
+                    if new_entries > 0:
+                        readline.append_history_file(new_entries, filepath)
+                    last_appended = hist_len
                 except Exception as e:
                     print(f"bash: history: {e}")
 
