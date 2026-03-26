@@ -93,10 +93,7 @@ def main():
     setup_readline()
     
     while True:
-        sys.stdout.write("$ ")
-        sys.stdout.flush()
-    
-        command = input()
+        command = input("$ ")
         raw_command = command
 
         parts = shlex.split(command)
