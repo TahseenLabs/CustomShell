@@ -154,10 +154,7 @@ def main():
         readline.write_history_file(HISTORY_FILE)
 
         if command == "exit":
-            try:
-                readline.append_history_file(readline.get_current_history_length(), HISTORY_FILE)
-            except Exception:
-                readline.write_history_file(HISTORY_FILE)
+            readline.write_history_file(HISTORY_FILE)
             break
 
         # Pipeline check FIRST, before any builtin handling
