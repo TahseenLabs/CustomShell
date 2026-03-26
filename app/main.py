@@ -86,8 +86,7 @@ def setup_readline():
     readline.parse_and_bind("set history-size 1000")
     readline.parse_and_bind('"\\e[A": history-search-backward')
     readline.parse_and_bind('"\\e[B": history-search-forward')
-    if os.path.exists(HISTORY_FILE):
-        readline.read_history_file(HISTORY_FILE)
+    readline.set_history_length(1000)
 
 def main():
     builtins = BUILTINS
