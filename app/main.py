@@ -21,7 +21,9 @@ def get_executables_from_path():
     return executables
 
 # All builtin command names
-BUILTINS = ["echo", "exit", "type", "pwd", "cd"]
+BUILTINS = ["echo", "exit", "type", "pwd", "cd", "history"]
+HISTORY_FILE = os.path.expanduser("~/.shell_history")
+
 
 def completer(text, state):     
     if state == 0:
@@ -78,10 +80,14 @@ def display_matches(substitution, matches, longest_match_length):
 def setup_readline():
     readline.set_completer(completer)
     readline.set_completion_display_matches_hook(display_matches)
-    # Complete on TAB only
     readline.parse_and_bind("tab: complete")
-    # Treat only whitespace as word break so whole command is the "text"
     readline.set_completer_delims(" \t\n")
+    # History setup
+    readline.parse_and_bind("set history-size 1000")
+    readline.parse_and_bind('"\\e[A": history-search-backward')
+    readline.parse_and_bind('"\\e[B": history-search-forward')
+    if os.path.exists(HISTORY_FILE):
+        readline.read_history_file(HISTORY_FILE)
 
 def main():
     builtins = BUILTINS
@@ -127,6 +133,24 @@ def main():
         if not command:
             continue
 
+        # Handle !N history execution before adding to history
+        if command.startswith("!"):
+            try:
+                n = int(command[1:])
+                hist_len = readline.get_current_history_length()
+                if 1 <= n <= hist_len:
+                    command = readline.get_history_item(n)
+                    parts = shlex.split(command)
+                else:
+                    print(f"bash: !{n}: event not found")
+                    continue
+            except ValueError:
+                print(f"bash: {command}: event not found")
+                continue
+
+        readline.add_history(command)
+        readline.write_history_file(HISTORY_FILE)
+
         if command == "exit":
             break
 
@@ -163,6 +187,12 @@ def main():
                         output = " ".join(seg[1:]) + "\n"
                     elif seg[0] == "pwd":
                         output = os.getcwd() + "\n"
+                    elif seg[0] == "history":
+                        hist_len = readline.get_current_history_length()
+                        lines = []
+                        for i in range(1, hist_len + 1):
+                            lines.append(f"    {i}  {readline.get_history_item(i)}")
+                        output = "\n".join(lines) + "\n"
                     elif seg[0] == "type":
                         cmd_name = seg[1] if len(seg) > 1 else ""
                         if cmd_name in BUILTINS:
@@ -262,6 +292,19 @@ def main():
 
         elif command == "pwd":
             print(os.getcwd())
+
+        elif command == "history" or command.startswith("history "):
+            # Parse optional limit argument: history N
+            limit = None
+            if command.startswith("history "):
+                try:
+                    limit = int(command[8:].strip())
+                except ValueError:
+                    limit = None
+            hist_len = readline.get_current_history_length()
+            start = 1 if limit is None else max(1, hist_len - limit + 1)
+            for i in range(start, hist_len + 1):
+                print(f"    {i}  {readline.get_history_item(i)}")
 
         elif command.startswith("cd "):
             target_dir = command[3:].strip()
