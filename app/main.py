@@ -87,6 +87,7 @@ def setup_readline():
     readline.parse_and_bind('"\\e[A": history-search-backward')
     readline.parse_and_bind('"\\e[B": history-search-forward')
     readline.set_history_length(1000)
+    readline.set_auto_history(False)
     if os.path.exists(HISTORY_FILE):
         try:
             readline.read_history_file(HISTORY_FILE)
@@ -135,6 +136,16 @@ def main():
 
         if not command:
             continue
+        
+        # Manually add to history (auto_history is off to preserve duplicates)
+        readline.add_history(command)
+
+        # Ensure duplicates are preserved in history
+        hist_len = readline.get_current_history_length()
+        if hist_len > 0 and readline.get_history_item(hist_len) == command:
+            # readline deduplicated it — force add it again
+            readline.remove_history_item(hist_len - 1)
+            readline.add_history(command)
 
         # Handle !N history execution before adding to history
         if command.startswith("!"):
