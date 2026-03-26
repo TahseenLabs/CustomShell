@@ -153,6 +153,11 @@ def main():
 
                 # Built-in handling
                 if seg[0] in BUILTINS:
+                    # If a previous process was piping into this builtin, drain and discard its output
+                    if prev_proc is not None:
+                        prev_proc.stdout.close()
+                        prev_proc.wait()
+                        prev_proc = None
                     if seg[0] == "echo":
                         output = " ".join(seg[1:]) + "\n"
                     elif seg[0] == "pwd":
