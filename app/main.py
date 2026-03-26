@@ -178,14 +178,21 @@ def main():
                     prev_output = output.encode()
 
                 else:
+                    stdin_source = subprocess.PIPE if (prev_output is not None or prev_proc is None) else prev_proc.stdout
                     proc = subprocess.Popen(
                         seg,
-                        stdin=subprocess.PIPE,
+                        stdin=stdin_source,
                         stdout=subprocess.PIPE,
                         stderr=(open(stderr_file, stderr_mode) if (stderr_file and is_last) else subprocess.PIPE)
                     )
-                    out, err = proc.communicate(input=prev_output)
-                    prev_output = out
+                    if prev_output is not None:
+                        # flush builtin output into this process
+                        proc.stdin.write(prev_output)
+                        proc.stdin.close()
+                        prev_output = None
+                    elif prev_proc is not None:
+                        prev_proc.stdout.close()  # allow prev_proc to get SIGPIPE
+                    prev_proc = proc
 
             # Handle final output
             if prev_output:
