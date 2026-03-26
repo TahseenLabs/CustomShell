@@ -87,6 +87,11 @@ def setup_readline():
     readline.parse_and_bind('"\\e[A": history-search-backward')
     readline.parse_and_bind('"\\e[B": history-search-forward')
     readline.set_history_length(1000)
+    if os.path.exists(HISTORY_FILE):
+        try:
+            readline.read_history_file(HISTORY_FILE)
+        except Exception:
+            pass
 
 def main():
     builtins = BUILTINS
@@ -147,6 +152,10 @@ def main():
         readline.write_history_file(HISTORY_FILE)
 
         if command == "exit":
+            try:
+                readline.append_history_file(readline.get_current_history_length(), HISTORY_FILE)
+            except Exception:
+                readline.write_history_file(HISTORY_FILE)
             break
 
         # Pipeline check FIRST, before any builtin handling
@@ -187,7 +196,7 @@ def main():
                         lines = []
                         for i in range(1, hist_len + 1):
                             lines.append(f"    {i}  {readline.get_history_item(i)}")
-                        output = "\n".join(lines) + "\n"
+                        output = "\n".join(lines) + "\n" if lines else ""
                     elif seg[0] == "type":
                         cmd_name = seg[1] if len(seg) > 1 else ""
                         if cmd_name in BUILTINS:
@@ -289,17 +298,49 @@ def main():
             print(os.getcwd())
 
         elif command == "history" or command.startswith("history "):
-            # Parse optional limit argument: history N
-            limit = None
-            if command.startswith("history "):
+            args_str = command[8:].strip() if command.startswith("history ") else ""
+            args_parts = args_str.split() if args_str else []
+
+            if args_parts and args_parts[0] == "-r" and len(args_parts) >= 2:
+                # Read/append file contents into history
+                filepath = args_parts[1]
                 try:
-                    limit = int(command[8:].strip())
-                except ValueError:
-                    limit = None
-            hist_len = readline.get_current_history_length()
-            start = 1 if limit is None else max(1, hist_len - limit + 1)
-            for i in range(start, hist_len + 1):
-                print(f"    {i}  {readline.get_history_item(i)}")
+                    with open(filepath, "r") as f:
+                        for line in f:
+                            line = line.rstrip("\n")
+                            if line:
+                                readline.add_history(line)
+                except FileNotFoundError:
+                    print(f"bash: history: {filepath}: No such file or directory")
+
+            elif args_parts and args_parts[0] == "-w" and len(args_parts) >= 2:
+                # Write history to file (overwrite)
+                filepath = args_parts[1]
+                try:
+                    readline.write_history_file(filepath)
+                except Exception as e:
+                    print(f"bash: history: {e}")
+
+            elif args_parts and args_parts[0] == "-a" and len(args_parts) >= 2:
+                # Append current session history to file
+                filepath = args_parts[1]
+                try:
+                    readline.append_history_file(readline.get_current_history_length(), filepath)
+                except Exception as e:
+                    print(f"bash: history: {e}")
+
+            else:
+                # Plain history or history N
+                limit = None
+                if args_parts:
+                    try:
+                        limit = int(args_parts[0])
+                    except ValueError:
+                        limit = None
+                hist_len = readline.get_current_history_length()
+                start = 1 if limit is None else max(1, hist_len - limit + 1)
+                for i in range(start, hist_len + 1):
+                    print(f"    {i}  {readline.get_history_item(i)}")
 
         elif command.startswith("cd "):
             target_dir = command[3:].strip()
