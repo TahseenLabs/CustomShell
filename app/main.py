@@ -146,6 +146,7 @@ def main():
                 pipeline_segments.append(current_segment)
 
             prev_output = None  # initialize before the loop
+            prev_proc = None
 
             for idx, seg in enumerate(pipeline_segments):
                 is_last = (idx == len(pipeline_segments) - 1)
@@ -195,7 +196,17 @@ def main():
                     prev_proc = proc
 
             # Handle final output
-            if prev_output:
+            if prev_proc is not None:
+                out, _ = prev_proc.communicate()
+                if redirect_file:
+                    stdout_dir = os.path.dirname(redirect_file)
+                    if stdout_dir:
+                        os.makedirs(stdout_dir, exist_ok=True)
+                    with open(redirect_file, redirect_mode) as f:
+                        f.write(out.decode())
+                else:
+                    print(out.decode(), end="")
+            elif prev_output:
                 if redirect_file:
                     stdout_dir = os.path.dirname(redirect_file)
                     if stdout_dir:
