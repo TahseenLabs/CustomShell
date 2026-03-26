@@ -148,30 +148,34 @@ def main():
             for idx, seg in enumerate(pipeline_segments):
                 is_last = (idx == len(pipeline_segments) - 1)
 
+                
                 # Built-in handling
                 if seg[0] in BUILTINS:
                     if seg[0] == "echo":
                         output = " ".join(seg[1:]) + "\n"
                     elif seg[0] == "pwd":
                         output = os.getcwd() + "\n"
+                    elif seg[0] == "type":
+                        cmd_name = seg[1] if len(seg) > 1 else ""
+                        if cmd_name in BUILTINS:
+                            output = f"{cmd_name} is a shell builtin\n"
+                        else:
+                            found_type = False
+                            for dir_path in os.environ.get("PATH", "").split(os.pathsep):
+                                if not os.path.isdir(dir_path):
+                                    continue
+                                full_path = os.path.join(dir_path, cmd_name)
+                                if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                                    output = f"{cmd_name} is {full_path}\n"
+                                    found_type = True
+                                    break
+                            if not found_type:
+                                output = f"{cmd_name}: not found\n"
                     else:
                         output = ""
 
-                    if 'prev_output' in locals() and prev_output:
-                        output = prev_output.decode() + output
-                        
+                    # Do NOT prepend prev_output — builtins like type/pwd ignore stdin
                     prev_output = output.encode()
-
-                else:
-                    proc = subprocess.Popen(
-                                seg,
-                                stdin=subprocess.PIPE if prev_output else None,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE if not is_last else (open(stderr_file, stderr_mode) if stderr_file else None)
-                            )
-                    # Feed previous output if exists
-                    out, err = proc.communicate(input=prev_output)
-                    prev_output = out
             
             # Handle final output
             if prev_output:
