@@ -87,7 +87,6 @@ def setup_readline():
     readline.parse_and_bind('"\\e[A": history-search-backward')
     readline.parse_and_bind('"\\e[B": history-search-forward')
     readline.set_history_length(1000)
-    readline.parse_and_bind("set history-ignore-dups off")
 
 
 def main():
