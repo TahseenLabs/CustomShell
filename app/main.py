@@ -1,3 +1,4 @@
+from motd import print_motd
 import sys
 import os
 import subprocess
@@ -98,6 +99,7 @@ def setup_readline():
 def main():
     builtins = BUILTINS
     setup_readline()
+    print_motd() 
     last_appended = 0  # tracks how many entries have been appended to file
     
     while True:
